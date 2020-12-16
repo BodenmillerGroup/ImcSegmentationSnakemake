@@ -1,0 +1,36 @@
+# Please look at the .schema.yml for documentation of the values
+input:
+  path_panel: 'resources/example_panel.csv'
+  folders:
+    - "resources/example_data"
+  file_regexp: ".*\\.zip"
+
+panel:
+  path: 'resources/example_panel.csv'
+  col_metal: 'Metal Tag'
+  stacks:
+    ilastik:
+      col_bool: 'ilastik'
+    full:
+      col_bool: 'full'
+
+
+
+# optional:
+ilastik:
+  mem_mb: 10000
+  threads: 8
+
+cellprofiler:
+  container: 'docker://votti/cellprofiler:develop'
+
+varia:
+  fn_cell_classifier: 'resources/classifiers/cell_classifier.ilp'
+  example_data_urls:
+    -
+      - '20170905_Fluidigmworkshopfinal_SEAJa.zip'
+      - 'https://polybox.ethz.ch/index.php/s/mxuWXq98MbYHgq2/download'
+
+compensation:
+    do_compensation: true
+    fn_spillover_matrix: resources/20170707_example_spillmat.csv

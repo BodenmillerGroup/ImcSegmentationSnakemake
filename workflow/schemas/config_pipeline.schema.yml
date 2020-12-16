@@ -1,0 +1,145 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+description: a configuration for the imc segmentation pipeline
+properties:
+  input:
+    type: object
+    properties:
+
+      folders:
+        type: array
+        description: list of input data folders[example_data]
+        items:
+          type: string
+          required: true
+
+      file_regexp:
+        type: string
+        description: regexp pattern that files/folders need to much to be considered to contain input `.mcd` files
+        required: true
+
+  panel:
+    type: object
+    properties:
+      path:
+        type: string
+        default: 'config/panel.csv'
+        required: true
+
+      col_metal:
+        type: string
+        default: 'Metal Tag'
+        description: The column in the panel csv indicating the metal in form MetalMass (eg Ir191)
+
+      stacks:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+
+            col_bool:
+              type: string
+              required: true
+
+            min_image_size:
+              type: integer
+              description: minimum image size in x and y in pixels. This prevents errors with pixel classifiers.
+              default: 50
+
+
+
+  cellprofiler:
+    type: object
+    description: Cellprofiler defaults
+    properties:
+
+      container:
+        type: string
+        default: 'docker://cellprofiler/cellprofiler:3.1.9'
+        description: Default cellprofiler singularity container
+
+      plugins:
+        type: string
+        default: resources/cp_plugins/ImcPluginsCP/plugins
+        description: path to the default cellprofiler plugins to be used
+
+  ilastik:
+    type: object
+    description: Ilastik defaults
+    properties:
+
+      container:
+        type: string
+        default: 'docker://ilastik/ilastik-from-binary:1.3.3post3'
+        description: Default Ilastik singularity container
+        required: false
+
+      threads:
+        type: integer
+        default: 4
+        description: number of threads to use per ilastik run
+        required: false
+
+      mem_mb:
+        type: integer
+        default: 10000
+        description: memory footprint of an ilastik run in mb
+        required: false
+
+
+  varia:
+    type: object
+    properties:
+      fn_cell_classifier:
+        type: string
+        description: path where the (trained) cell classifier will be saved
+        required: true
+
+      imctools_container:
+        type: string
+        default: 'docker://votti/imctools2:2.1.0'
+        description: Default imctools singularity container
+        required: false
+
+      example_data_urls:
+        type: array
+        description: optional list urls to retrieve example data. Only needed in case example data is to be used
+
+      fn_zip_export:
+        type: string
+        default: 'results/cpout.zip'
+        description: export path for zipped cpout
+
+  compensation:
+      type: object
+      properties:
+        do_compensation:
+          type: boolean
+          default: false
+          description: Use compensation workflow
+
+        catalyst_container:
+          type: string
+          default: "docker://votti/spheroid_publication:catalyst_v1"
+          description: container with R packages required for compensation
+
+        folder_spillover_slide_acs:
+          type: string
+          default: ""
+          description: folder or zipped folder containing compensation acquisitions
+
+        folder_spillover_slide_acs_url:
+          type: string
+          default: ""
+          description: url to the ziped folder containing compensation acquisitions
+
+        fn_spillover_matrix:
+          type: string
+          default: ""
+          description: file path to the the spillover matrix csv
+
+        col_panel_spillover:
+          type: string
+          default: "spillover"
+          description: name of column in panel.csv indicating metals used for spillover acquisitions
+
+
