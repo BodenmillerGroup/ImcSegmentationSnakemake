@@ -2,7 +2,7 @@ dist: bionic
 
 cache:
   directories:
-    - /home/travis/build/BodenmillerGroup/ImcSegmentationPipeline/.snakemake/singularity
+    - /home/travis/build/BodenmillerGroup/ImcSegmentationSnakemake/.snakemake/singularity
 language: python
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
@@ -23,7 +23,7 @@ install:
   - conda config --add channels conda-forge
   - conda config --add channels bioconda
   - conda install -q -c conda-forge mamba
-  - mamba create -q -n snakemake bioconda::snakemake=5.19
+  - mamba create -q -n snakemake bioconda::snakemake=5.24
 
 script:
   - source activate snakemake
