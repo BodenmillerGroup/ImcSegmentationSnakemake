@@ -42,7 +42,10 @@ git submodule update --init --recursive
 ###  Step2: Install Snakemake
 Install Snakemake using [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html):
 
-    conda create -c bioconda -c conda-forge -n snakemake snakemake
+    conda create -c bioconda -c conda-forge -n snakemake snakemake=5.27
+    
+Note: currently more recent versions of Snakemake have introduced some incompatible issues.
+This will be fixed soon.
 
 For installation details, see the [instructions in the Snakemake documentation](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html).
 
