@@ -1,0 +1,12 @@
+name: imctools
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - numpy
+  - python=3.8
+  - pandas
+  - pip
+  - pip:
+      - imctools>=2.1

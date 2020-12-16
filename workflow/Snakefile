@@ -1,0 +1,623 @@
+# Initialize all dependencies
+# ==========================
+## Libraries
+import urllib.request
+import pathlib
+import shutil
+import pandas as pd
+from scripts import helpers as hpr
+from snakemake.utils import validate
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+
+## Rules to run cellprofiler and ilastik
+include: 'rules/cellprofiler.smk'
+include: 'rules/ilastik.smk'
+
+# Read Configuration
+# ==================
+# Path to configuration file
+configfile: 'config/config_pipeline.yml'
+
+# Path to sample file
+# (If not provided this will be generated based on the folders and regular
+#  expresssion indicated in the configuration)
+file_path_samples = 'resources/samples.csv'
+
+# Validate the configuration file using the schema
+# -> This also sets all the default values
+validate(config, "schemas/config_pipeline.schema.yml")
+
+# Extract variables from configuration
+# -> The meaning of the variables is documented in the schema file
+# Input/output
+input_data_folders = config['input']['folders']
+input_file_regexp = config['input']['file_regexp']
+file_path_cell_classifier = config['varia']['fn_cell_classifier']
+
+# Optional example data folder
+# -> If this is selected as the input folder, the example data is automatically
+#    downloaded.
+fol_imc_example = 'resources/example_data'
+
+# Panel metadata
+config_panel = config['panel']
+csv_panel = config['panel']['path']
+csv_panel_metal = config_panel['col_metal']
+config_stacks = config_panel['stacks']
+
+# Varia:
+# Ilastik run config
+config_ilastik = config['ilastik']
+ilastik_container = config_ilastik['container']
+ilastik_threads = config_ilastik['threads']
+ilastik_mem_mb = config_ilastik['mem_mb']
+
+# Cellprofiler run config
+cellprofiler_container = config['cellprofiler']['container']
+cp_plugins = config['cellprofiler']['plugins']
+
+# Imctools container
+imctools_container = config['varia']['imctools_container']
+
+# Define hardcoded variables
+# --------------------------
+## Define basic folder structrue
+fol_path_base = pathlib.Path('results')
+fol_path_analysis = fol_path_base / 'tiffs'
+fol_pat_stack = fol_path_analysis / 'stack_{stack}'
+fol_path_full = fol_path_analysis / 'stack_full'
+fol_path_ilastik = fol_path_analysis / 'stack_ilastik'
+fol_path_ilastik_h5 = fol_path_analysis / 'ilastik_h5'
+fol_path_probabilities = fol_path_analysis / 'probabilities'
+fol_path_cellmasks = fol_path_analysis / 'cellmasks'
+fol_path_ome = fol_path_base / 'ometiff'
+
+fol_path_histocat = fol_path_base / 'histocat'
+fol_path_uncertainty = fol_path_base / 'uncertainty'
+fol_path_crop = fol_path_base / 'ilastik_training_data'
+fol_path_classifiers = fol_path_base / 'classifiers'
+
+# Define Output files
+fol_path_cp = fol_path_base / 'cpout'
+fol_path_cp_masks = fol_path_cp / 'masks'
+fol_path_cp_images = fol_path_cp / 'images'
+file_path_image = fol_path_cp / 'Image.csv'
+file_path_cell = fol_path_cp / 'cell.csv'
+file_path_varcell = fol_path_cp / 'var_cell.csv'
+file_path_varimage = fol_path_cp / 'var_Image.csv'
+file_path_experiment = fol_path_cp / 'Experiment.csv'
+file_path_object_rel = fol_path_cp / 'Object relationships.csv'
+file_path_cell_class_ut = fol_path_classifiers / 'cell_untrained.ilp'
+file_path_cpout_panel = fol_path_cp / 'panel.csv'
+
+file_path_cpexport_zip = config['varia']['fn_zip_export']
+# CP input folder
+fol_path_cp_input = fol_path_base / 'cpinput'
+file_path_acmeta = fol_path_cp_input / 'acquisition_metadata.csv'
+file_pat_channelmeta = fol_path_cp_input / '{stack}_channelmeta.csv'
+file_path_channelmeta_full = str(file_pat_channelmeta).format(stack='full')
+file_path_channelmeta_cellprobab = fol_path_cp_input / 'probab_channelmeta_manual.csv'
+
+# Untrained ilastik classifier
+file_path_untrained_cellclassifier = 'untrained.ilp'
+
+# Compensation related variables:
+config_compensation = config['compensation']
+do_compensation = config_compensation['do_compensation']
+catalyst_container = config_compensation['catalyst_container']
+fol_path_compensation = fol_path_base / 'compensation'
+file_path_sm_mat = fol_path_compensation / 'spillover_mat.csv'
+file_path_ss_panel = fol_path_compensation / 'singlestain_panel.csv'
+file_path_compensation = config_compensation['folder_spillover_slide_acs']
+fol_pat_sms = fol_path_base / 'sms_{stack}'
+fol_path_sms_full = pathlib.Path(str(fol_pat_sms).format(stack='full'))
+csv_panel_spillover = config_compensation['col_panel_spillover']
+
+file_path_orig_sm = config_compensation['fn_spillover_matrix']
+fol_path_spillover_slide_acs = config_compensation['folder_spillover_slide_acs']
+if do_compensation:
+    if len(file_path_orig_sm) == 0:
+        if len(fol_path_spillover_slide_acs) > 0:
+            spillover_mode = 'estimate_sm'
+        else:
+            raise ValueError('Either "folder_spillover_slide_acs" or "fn_spillover_matrix'
+                             'needs to be provided.')
+    elif len(fol_path_spillover_slide_acs) == 0:
+            spillover_mode = 'copy_sm'
+    else:
+        raise ValueError('Only provide either "folder_spillover_slide_acs" or "fn_spillover_matrix'
+                         'but not both.')
+
+# Produce a list of all cellprofiler output files
+cp_measurements_output_files = [file_path_image,
+                          file_path_cell,
+                          file_path_experiment,
+                          file_path_object_rel,
+                          file_path_varcell,
+                          file_path_varimage
+                          ]
+cp_measurements_output = cp_measurements_output_files +  [
+                           fol_path_cp_masks,
+                           fol_path_cp_images,
+                           file_path_cpout_panel,
+                           ]
+
+
+## Define suffixes for files
+suffix_scale = '_s2'
+suffix_mask = '_mask'
+suffix_probablities = '_Probabilities'
+suffix_tiff = '.tiff'
+suffix_csv = '.csv'
+suffix_h5 = '.h5'
+suffix_done = '.done'
+suffix_crop = '_{crop, x[0-9]+_y[0-9]+_w[0-9]+_h[0-9]+}'
+
+# Define derived file patterns
+pat_file_path_mcdparse_done = fol_path_base / 'zips' / ('{zipfol}' + suffix_done)
+file_path_all_mcd_converted = fol_path_base / 'all_mcd_converted.done'
+
+## Init dirs
+fol_path_ome.mkdir(parents=True, exist_ok=True)
+
+###############################################################################
+# Start with the workflow definition:
+# Snakemake rules
+# Target rules
+rule all:
+    message: "Run complete pipeline"
+    input: cp_measurements_output
+
+
+
+# The rules are roughly in order that they are use
+# Configuration for cellprofiler pipeline steps
+# (Please look at rules/cellprofiler.smk for the documentation of this structure)
+config_dict_cp = {
+    'prepilastik': {
+        'message':  """\
+                    Prepare image stack for ilastik pixel classification
+                    
+                    This includes: 
+                    - Filtering out outlier pixels
+                    - Prepending scaled mean of all channels a first channel
+                    - Scaling images to 2x resolution
+                        -> Should make it easier to draw pixels
+                    - Taking a random crop of each image as training set
+                    """,
+        'run_size': 4,
+        'plugins': cp_plugins,
+        'pipeline': 'resources/cp4_pipelines/1_prepare_ilastik.cppipe',
+        'input_files': [fol_path_ilastik, # Folder containing Ilastik stacks
+                        ],
+        'output_patterns': {'scaled':
+                                # Folder containing 2x scaled hdf5 images
+                                # for Ilastik
+                                directory(fol_path_ilastik_h5),
+                            'crops':
+                                # Folder containing random crops as training
+                                # data
+                                directory(fol_path_crop)}
+    },
+
+}
+# Configuration for Ilastik steps
+# (Please look at rules/cellprofiler.smk for the documentation of this structure)
+config_dict_ilastik = {
+    'cell':
+        {'message': """\
+                    Run the ilastik cell pixel classifier
+                    
+                    This is a trained classifier to identify pixels of three
+                    classes:
+                    - "Nuclear" pixels: Pixels at the center of cells/nuclei
+                    - "Cytoplasm/Membrane" pixels: Pixels that represent 
+                    cytoplasm/membrane or are separating clumped nuclei
+                    - "Background" pixels: Pixels that represent empty 
+                    background in the image
+                    
+                    This classier needs to be trained for a specific 
+                    combination of antibodies in specific channels. The 
+                    training should be done as described in the paper.
+                    
+                    This produces probability maps that are easy to segment.
+                    """,
+         'project': file_path_cell_classifier,
+         'run_size': 4,
+         'output_format': 'tiff',
+         'output_filename': f'{{nickname}}{suffix_probablities}{suffix_tiff}',
+         'export_source': 'Probabilities',
+         'export_dtype': 'uint16',
+         'pipeline_result_drange': '"(0.0, 1.0)"',
+         'input_files':
+             # Folder containing process hdf5
+             # images for ilastik pixel classification
+             fol_path_ilastik_h5,
+         'output_pattern':
+            # Folder containing probability maps for segmentation
+            directory(fol_path_probabilities)
+         }
+}
+
+#
+config_dict_cp ={**config_dict_cp,
+    'segmasks': {
+        'message':  """\
+                    Identify cellular masks from probability masks 
+                    
+                    Segment probability maps into:
+                    - Cell masks
+                    - Nuclear masks
+                    - Cytoplasmic masks
+                    """,
+        'run_size': 4,
+        'plugins': cp_plugins,
+        'pipeline': 'resources/cp4_pipelines/2_segment_ilastik.cppipe',
+        'input_files': [
+            # Folder containing probability maps for segmentation
+            fol_path_probabilities,
+        ],
+        'output_patterns': {'.':
+                    # Folder containing segmentation masks
+                    directory(fol_path_cellmasks),
+                            }
+    },
+
+                 }
+
+if not do_compensation:
+    config_dict_cp['measuremasks'] = {
+        'message':  """\
+                    Measure masks 
+                    
+                    Measure segmentation masks
+                    """,
+        'run_size': 1,
+        'plugins': cp_plugins,
+        'pipeline': 'resources/cp4_pipelines/adapted/3_measure_mask_basic.cppipe',
+        'input_files': [
+            # Folder containing segmentation masks
+            fol_path_cellmasks,
+            # Folder containing image stacks to measure
+            fol_path_full,
+            # Folder containing cell probabilities
+            fol_path_probabilities,
+            # Acquisition metadata
+            file_path_acmeta,
+            # Channel metadata
+            file_path_channelmeta_full,
+            file_path_channelmeta_cellprobab
+        ],
+        'output_patterns': {'.':
+                            # Folder containing cellprofiler measurement
+                                cp_measurements_output_files,
+                            # Subfolder containing segmentation masks used
+                            # for the measurements
+                            'masks': directory(fol_path_cp_masks),
+                            # Subfolder containing the images used for the
+                            # measurements.
+                            'images': directory(fol_path_cp_images)},
+        'input_folder': fol_path_cp_input
+    }
+else:
+    config_dict_cp['measuremaskscomp'] = {
+        'message':  """\
+                    Measure masks 
+                    
+                    Measure segmentation masks and apply compensation
+                    """,
+        'run_size': 1,
+        'plugins': cp_plugins,
+        'pipeline': 'resources/cp4_pipelines/adapted/3_measure_mask_compensation.cppipe',
+        'input_files': [
+            # Folder containing segmentation masks
+            fol_path_cellmasks,
+            # Folder containing image stacks to measure
+            fol_path_full,
+            # Folder containing cell probabilities
+            fol_path_probabilities,
+            # Acquisition metadata
+            file_path_acmeta,
+            # Channel metadata
+            file_path_channelmeta_full,
+            file_path_channelmeta_cellprobab,
+            fol_path_sms_full
+        ],
+        'output_patterns': {'.':
+                            # Folder containing cellprofiler measurement
+                            cp_measurements_output_files,
+                            # Subfolder containing segmentation masks used
+                            # for the measurements
+                            'masks': directory(fol_path_cp_masks),
+                            # Subfolder containing the images used for the
+                            # measurements.
+                            'images': directory(fol_path_cp_images)},
+        'input_folder': fol_path_cp_input
+    }
+
+rule cell_probabilities:
+    input: fol_path_probabilities
+
+rule prep_cell_classifier:
+    input: fol_path_crop, file_path_untrained_cellclassifier,
+         fol_path_ilastik_h5
+
+rule files_ilastik_scaled:
+    input: fol_path_ilastik_h5
+
+rule files_ilastik:
+    input: fol_path_ilastik
+
+rule files_ome:
+    input: fol_path_ome
+
+# Helper rules
+checkpoint generate_sample_list:
+    input: input_data_folders
+    output:
+        file_path_samples
+    run:
+       fns = hpr.get_filenames_by_re(input_data_folders, input_file_regexp)
+       pd.DataFrame({'mcd_folders': fns}).to_csv(output[0], index=False)
+
+_sample_dict = None
+def get_sample_dict():
+    global _sample_dict
+    if _sample_dict is None:
+        checkpoints.generate_sample_list.get()
+        dat_samples = pd.read_csv(file_path_samples)
+        _sample_dict = {pathlib.Path(x).stem: x for x in dat_samples[
+            'mcd_folders']}
+    return _sample_dict
+
+def get_zip_fn(wildcards):
+    sample_dict = get_sample_dict()
+    return str(sample_dict[wildcards.zipfol])
+
+def get_expected_mcd_done(wildcards):
+    checkpoints.generate_sample_list.get()
+    sample_dict = get_sample_dict()
+    return expand(str(pat_file_path_mcdparse_done), zipfol=sample_dict.keys())
+
+# MCD to ome conversion
+rule mcdfolder2imcfolder:
+    input:
+         fn_zip = get_zip_fn
+    output: touch(pat_file_path_mcdparse_done)
+    threads: 1
+    params:
+          fol_ome = fol_path_ome
+    container:
+          imctools_container
+    script:
+          'scripts/convert_imcfolder.py'
+
+checkpoint all_mcd_converted:
+    input:
+           file_path_samples,
+           get_expected_mcd_done
+    output:
+          touch(file_path_all_mcd_converted)
+
+
+# OME to analysis tiff conversion
+rule ome2analysis:
+    input:
+         fol_ome = fol_path_ome,
+         panel = csv_panel,
+         done = file_path_all_mcd_converted
+    output:
+          directory(fol_pat_stack)
+    container:
+             imctools_container
+    params:
+          column_used = lambda wildcards: config_stacks[wildcards.stack][
+              'col_bool'],
+          column_metal = csv_panel_metal,
+          suffix = '_{stack}',
+          min_imgsize = lambda wildcards: config_stacks[wildcards.stack][
+              'min_image_size']
+    threads: 32
+    script:
+          'scripts/imc2analysis.py'
+
+rule analysis2channelmeta:
+    message: """\
+             Copy a csv containing the channel metals for the
+             stack "{wildcards.stack}" to the cp input folder.
+             """
+    input:
+        fol_pat_stack
+    output:
+        file_pat_channelmeta
+    run:
+        fn_csv = next(pathlib.Path(input[0]).glob(f'*{wildcards.stack}.csv'))
+        shutil.copy(fn_csv, output[0])
+
+
+rule exportacmeta:
+    message: """\
+             Export acquisition metadata in a cellprofiler compatible csv file.
+             """
+    input:
+        fol_path_ome = fol_path_ome,
+        all_converted = file_path_all_mcd_converted
+    output: file_path_acmeta
+    params:
+        fol_path_out = str(file_path_acmeta.parent)
+    container:
+        imctools_container
+    shell:
+        ' imctools export-acquisition-csv {input.fol_path_ome} {params.fol_path_out}'
+
+## Spillover/compensation related rules
+if do_compensation:
+    if spillover_mode == "estimate_sm":
+        rule get_ss_panel_from_panel:
+            input: csv_panel
+            output: file_path_ss_panel
+            params:
+                col_metal=csv_panel_metal,
+                col_spillover=csv_panel_spillover
+            run:
+                dat_csv = pd.read_csv(csv_panel)
+                assert params.col_spillover in dat_csv.columns, ValueError(
+                    f"The panel csv {csv_panel} should contain a boolean column"
+                    f"{params.col_spillover} indicating the metals used for the"
+                    f"spillover acquisitions.")
+                metals = dat_csv.query(
+                    f'{params.col_spillover} == 1')[params.col_metal].values
+                with open(output[0], 'w') as f:
+                    for m in metals:
+                        f.write(m+'\n')
+
+
+
+
+        rule compensation_estimate_sm:
+            message:
+                "Calculate spillover matrix from single stain experiments"
+            input:
+                fns_compensation=[file_path_compensation],
+                fn_ss_panel=file_path_ss_panel,
+            output:
+                file_path_sm_mat,
+            container:
+                catalyst_container
+            resources:
+                mem="8G",
+            log:
+                notebook="logs/compensation/imc_generatespillmat_long.r.ipynb",
+            notebook:
+                "notebooks/imc_generatespillmat_long.r.ipynb"
+    else:
+        rule compensation_copy_sm:
+            message:
+                "Copy spillover matrix"
+            input:
+                file_path_orig_sm
+            output:
+                file_path_sm_mat
+            run:
+                shutil.copy(input[0], output[0])
+
+    rule compensation_adapt_sm:
+        message:
+            'Adapt spillover matrix to stack channels'
+        input:
+            fn_sm_mat=file_path_sm_mat,
+            fol_csvs=fol_pat_stack
+        output:
+            fol_out=directory(fol_pat_sms),
+        container:
+            catalyst_container
+        log:
+            notebook="logs/compensation/imc_adaptsm_{stack}.r.ipynb",
+        notebook:
+            "notebooks/imc_adaptsm.r.ipynb"
+
+
+## Add the number of channels to the measure_mask pipeline
+
+rule modify_measurement_basic_pipeline:
+    input:
+        pipeline='resources/cp4_pipelines/templates/3_measure_mask_{pipevariant}'
+                 '.cppipe',
+        channels_fullstack=str(file_path_channelmeta_full)
+    output:
+        'resources/cp4_pipelines/adapted/3_measure_mask_{pipevariant}.cppipe'
+    run:
+        fn_out = pathlib.Path(output[0])
+        fn_out.parent.mkdir(exist_ok=True)
+        n_channel = sum(1 for line in open(input.channels_fullstack)
+                        if line.rstrip())
+        with open(input.pipeline, 'r') as f:
+            old_pipe = f.read()
+        new_pipe = old_pipe.replace('{nchan_full}', str(n_channel))
+
+        with open(output[0], 'w') as f:
+            f.write(new_pipe)
+
+## Varia helper
+rule move_panel_to_cpout:
+    input: csv_panel
+    output: file_path_cpout_panel
+    run:
+        shutil.copy(input[0], output[0])
+
+rule get_untrained_ilastik:
+    input: fol_path_crop
+    output: file_path_untrained_cellclassifier
+    container: ilastik_container
+    shell:
+        """
+        /ilastik-release/bin/python workflow/scripts/get_untrained_project.py\
+            {output[0]} {input[0]}
+        """
+
+rule generate_channelmeta_probab:
+    output: file_path_channelmeta_cellprobab
+    run:
+        probab_meta = ["CellCenter", "CellBorder", "Background"]
+        with open(output[0], 'w') as f:
+            f.write('\n'.join(probab_meta))
+
+rule zip_output_data:
+    input:
+         cp_measurements_output
+    output:
+          file_path_cpexport_zip
+    params:
+          path_input = fol_path_cp,
+          abs_path_output = pathlib.Path(file_path_cpexport_zip).resolve()
+
+    resources:
+            time="120"
+    shell:
+         'cd {params.path_input}; zip -r {params.abs_path_output} *'
+
+## Rules to target Cellprofiler batch runs
+define_cellprofiler_rules(config_dict_cp, fol_path_base, container_cp=cellprofiler_container)
+define_ilastik_rules(config_dict_ilastik, fol_path_base, threads=ilastik_threads,
+                     mem_mb=ilastik_mem_mb, container_ilastik=ilastik_container)
+
+###############################################################################
+# Rules to retrieve data
+# It is good practice to not rely on files being present but collect them
+# before running this pipeline
+# This can be done by:
+#  - Setting an input folder that doesnt exist yet
+#  - Adding a rule bellow that generates an input folder and
+#    downloads/collects files into it.
+#
+# This is shown here using the example folder which when set as input folder
+# Will automatically be populated via the 'download_example_data' rule.
+#
+
+## Rules to download data
+HTTP = HTTPRemoteProvider()
+dict_examples = {fn: HTTP.remote(url) for fn, url in
+                 config['varia']['example_data_urls']}
+
+rule download_example_data:
+    input: **dict_examples
+    output: directory(fol_imc_example)
+    run:
+        fol = pathlib.Path(output[0])
+        pathlib.Path(fol).mkdir(parents=True, exist_ok=True)
+        for fn, fn_cache in input.items():
+            fn = fol / fn
+            if ~fn.exists():
+                shutil.move(fn_cache[0], fn)
+
+### Varia
+
+rule download_spillover_data:
+    input: HTTP.remote(config_compensation['folder_spillover_slide_acs_url'])
+    output: fol_path_spillover_slide_acs
+    run:
+        shutil.move(input[0], output[0])
+
+rule clean:
+    shell:
+        "rm -R {fol_path_base}"
