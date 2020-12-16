@@ -5,7 +5,7 @@
 
 The pipeline is based on `CellProfiler` (http://cellprofiler.org/) for segmentation and `Ilastik` (http://ilastik.org/) for
 for pixel classification. It is streamlined by using the specially developed `imctools` python package (https://github.com/BodenmillerGroup/imctools) 
-package as well as custom CellProfiler modules (https://github.com/BodenmillerGroup/ImcPluginsCP, develop-cp3 branch!).
+package as well as custom CellProfiler modules (https://github.com/BodenmillerGroup/ImcPluginsCP).
 
 This pipeline was developed in the Bodenmiller laboratory of the University of Zurich (http://www.bodenmillerlab.org/) to segment hundereds of highly multiplexed
 imaging mass cytometry (IMC) images. However it also has been already been sucessfully applied to other multiplexed
