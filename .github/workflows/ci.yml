@@ -5,9 +5,9 @@ name: CI
 
 on:
   push:
-    branches: [ snakemake, hubmap ]
+    branches: [  ]
   pull_request:
-    branches: [ snakemake, hubmap ]
+    branches: [  ]
 
 jobs:
   build:
