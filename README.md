@@ -1,5 +1,4 @@
-# A flexible  image segmentation pipeline for heterogneous multiplexed tissue images based on pixel classification
-*This is the experimental `snakemake` branch*
+# A flexible  image segmentation pipeline for heterogneous multiplexed tissue images based on pixel classification implemente in Snakemake
 
 [![Snakemake](https://img.shields.io/badge/snakemake-≥5.7.0-brightgreen.svg)](https://snakemake.bitbucket.io)
 [![Build Status](https://travis-ci.org/snakemake-workflows/misegmentation.svg?branch=master)](https://travis-ci.org/snakemake-workflows/misegmentation)
