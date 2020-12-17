@@ -417,7 +417,7 @@ rule ome2analysis:
           suffix = '_{stack}',
           min_imgsize = lambda wildcards: config_stacks[wildcards.stack][
               'min_image_size']
-    threads: 32
+    threads: 8
     script:
           'scripts/imc2analysis.py'
 
@@ -519,7 +519,7 @@ if do_compensation:
 
 ## Add the number of channels to the measure_mask pipeline
 
-rule modify_measurement_basic_pipeline:
+rule modify_measurement_pipeline:
     input:
         pipeline='resources/cp4_pipelines/templates/3_measure_mask_{pipevariant}'
                  '.cppipe',
