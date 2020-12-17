@@ -28,6 +28,12 @@ def define_cellprofiler_rules(configs_cp, folder_base,
                                                    # -> required if eg metadata
                                                    # file paths specified
                                                    # relative to input folder.
+            Optional:
+                'resources': {'mem_mb': Memory footprint for CP run (eg '4000MB')
+                    }
+
+
+
     }
 
 
