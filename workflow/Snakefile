@@ -386,7 +386,8 @@ rule mcdfolder2imcfolder:
     output: touch(pat_file_path_mcdparse_done)
     threads: 1
     params:
-          fol_ome = fol_path_ome
+          fol_ome = fol_path_ome,
+          fn_zip = get_zip_fn
     container:
           imctools_container
     script:
@@ -511,6 +512,8 @@ if do_compensation:
             fol_out=directory(fol_pat_sms),
         container:
             catalyst_container
+        resources:
+            mem_mb = '8000MB'
         log:
             notebook="logs/compensation/imc_adaptsm_{stack}.r.ipynb",
         notebook:

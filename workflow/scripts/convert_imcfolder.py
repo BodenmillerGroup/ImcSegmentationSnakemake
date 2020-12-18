@@ -3,7 +3,7 @@ import pathlib
 import traceback
 
 if __name__ == '__main__':
-    fn_zip = snakemake.input.fn_zip
+    fn_zip = snakemake.params.fn_zip
     fol_ome = snakemake.params.fol_ome
     try:
         mcdfolder2imcfolder.mcdfolder_to_imcfolder(
