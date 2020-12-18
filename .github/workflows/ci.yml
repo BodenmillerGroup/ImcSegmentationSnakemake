@@ -68,9 +68,12 @@ jobs:
         printenv | sort
     - name: Install Snakemake
       shell: bash -l {0}
-      run: mamba install -q bioconda::snakemake=5.19
+      run: mamba install -q bioconda::snakemake
     - name: Checkout submodules
       run: git submodule update --init --recursive
     - name: Run the full workflow
+      shell: bash -l {0}
+      run: snakemake --use-conda --use-singularity --cores 2 --config ilastik_mem_mb=4000
+    - name: Run the full again to check if everything went through
       shell: bash -l {0}
       run: snakemake --use-conda --use-singularity --cores 2 --config ilastik_mem_mb=4000
