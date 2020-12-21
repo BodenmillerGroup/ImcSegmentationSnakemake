@@ -155,7 +155,7 @@ MeasureImageIntensityMultichannel:[module_num:13|svn_version:'Unknown'|variable_
     Select input object sets:
     How many channels does the image have?:3
 
-CorrectSpilloverMeasurements:[module_num:14|svn_version:'Unknown'|variable_revision_number:5|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+CorrectSpilloverMeasurements:[module_num:14|svn_version:'Unknown'|variable_revision_number:3|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
     Select Object:cell
     Select the measurment to correct for spillover:Intensity_MeanIntensity_FullStackFiltered
     Name the output compmeasurement suffix:Comp

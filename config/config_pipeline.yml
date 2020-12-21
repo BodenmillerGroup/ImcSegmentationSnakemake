@@ -1,6 +1,5 @@
 # Please look at the .schema.yml for documentation of the values
 input:
-  path_panel: 'resources/example_panel.csv'
   folders:
     - "resources/example_data"
   file_regexp: ".*\\.zip"
@@ -13,8 +12,6 @@ panel:
       col_bool: 'ilastik'
     full:
       col_bool: 'full'
-
-
 
 # optional:
 ilastik:
