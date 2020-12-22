@@ -1,6 +1,6 @@
 # A flexible  image segmentation pipeline for heterogneous multiplexed tissue images based on pixel classification implemente in Snakemake
 
-[![Snakemake](https://img.shields.io/badge/snakemake-=5.24-brightgreen.svg)](https://snakemake.bitbucket.io)
+[![Snakemake](https://img.shields.io/badge/snakemake->=5.31.1-brightgreen.svg)](https://snakemake.bitbucket.io)
 [![Build Status](https://travis-ci.org/snakemake-workflows/misegmentation.svg?branch=master)](https://travis-ci.org/snakemake-workflows/misegmentation)
 
 The pipeline is based on `CellProfiler` (http://cellprofiler.org/) for segmentation and `Ilastik` (http://ilastik.org/) for
@@ -40,7 +40,7 @@ git submodule update --init --recursive
 ###  Step2: Install Snakemake
 Install Snakemake using [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html):
 
-    conda create -c bioconda -c conda-forge -n snakemake snakemake=5.24
+    conda create -c bioconda -c conda-forge -n snakemake snakemake
     
 Note: currently more recent versions of Snakemake have introduced some issues.
 This will be fixed soon.
