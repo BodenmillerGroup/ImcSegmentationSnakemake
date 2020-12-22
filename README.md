@@ -1,6 +1,6 @@
 # A flexible  image segmentation pipeline for heterogneous multiplexed tissue images based on pixel classification implemente in Snakemake
 
-[![Snakemake](https://img.shields.io/badge/snakemake->=5.30.2-brightgreen.svg)](https://snakemake.bitbucket.io)
+[![Snakemake](https://img.shields.io/badge/snakemake->=5.31.1-brightgreen.svg)](https://snakemake.bitbucket.io)
 [![Build Status](https://travis-ci.org/snakemake-workflows/misegmentation.svg?branch=master)](https://travis-ci.org/snakemake-workflows/misegmentation)
 
 The pipeline is based on `CellProfiler` (http://cellprofiler.org/) for segmentation and `Ilastik` (http://ilastik.org/) for
