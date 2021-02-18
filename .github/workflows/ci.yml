@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - feature-fix-ci
+  pull_request:
+    branches_ignore: []
+
+jobs:
+  formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Setup black environment
+        run: |
+          conda create -c conda-forge -y -q --name black black
+
+  testing:
+    runs-on: ubuntu-latest
+    needs: formatting
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Setup Snakemake environment
+        shell: /bin/bash -l {0}
+        run: |
+          export PATH="/usr/share/miniconda/bin:$PATH"
+          conda install -q --name base conda-forge::mamba
+          mamba install -c conda-forge -q bioconda::snakemake
+
+      - name: Setup apt dependencies
+        run: |
+          sudo apt install -y stress \
+            build-essential \
+            libssl-dev \
+            uuid-dev \
+            libgpgme11-dev \
+            squashfs-tools \
+            libseccomp-dev \
+            wget \
+            pkg-config \
+            git \
+            cryptsetup
+
+      - name: Setup Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.13'
+
+      - name: Setup singularity
+        run: |
+          export VERSION=3.6.2
+          wget https://github.com/sylabs/singularity/releases/download/v${VERSION}/singularity-${VERSION}.tar.gz
+          tar -xzf singularity-${VERSION}.tar.gz
+          cd singularity
+          ./mconfig
+          make -C builddir
+          sudo make -C builddir install
+
+      - name: Checkout submodules
+        run: git submodule update --init --recursive
+
+      - name: Run the full workflow
+        shell: bash -l {0}
+        run: snakemake --use-conda --use-singularity --cores 2 --config ilastik_mem_mb=4000
+
+      - name: Run the full again to check if everything went through
+        shell: bash -l {0}
+        run: snakemake --use-conda --use-singularity --cores 2 --config ilastik_mem_mb=4000
