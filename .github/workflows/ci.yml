@@ -63,9 +63,14 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Run the full workflow
-        shell: bash -l {0}
-        run: snakemake --use-conda --use-singularity --cores 2 --config ilastik_mem_mb=4000
+        run: |
+          # activate conda env
+          export PATH="/usr/share/miniconda/bin:$PATH"
+          source activate snakemake
+          snakemake --use-conda --use-singularity --cores 2 --config ilastik_mem_mb=4000
 
       - name: Run the full again to check if everything went through
-        shell: bash -l {0}
-        run: snakemake --use-conda --use-singularity --cores 2 --config ilastik_mem_mb=4000
+        run: |
+          # activate conda env
+          export PATH="/usr/share/miniconda/bin:$PATH"
+          snakemake --use-conda --use-singularity --cores 2 --config ilastik_mem_mb=4000
