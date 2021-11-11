@@ -1,5 +1,8 @@
 # A flexible  image segmentation pipeline for heterogneous multiplexed tissue images based on pixel classification implemente in Snakemake
 
+**Deprecation note:** This repository is not actively maintained. For a dockerized version of the IMC segmentation pipeline, 
+please refer to [steinbock](https://github.com/BodenmillerGroup/steinbock).
+
 [![Snakemake](https://img.shields.io/badge/snakemake->=5.31.1-brightgreen.svg)](https://snakemake.bitbucket.io)
 [![Build Status](https://travis-ci.org/snakemake-workflows/misegmentation.svg?branch=master)](https://travis-ci.org/snakemake-workflows/misegmentation)
 
